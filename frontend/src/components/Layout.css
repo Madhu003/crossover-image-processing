@@ -1,0 +1,34 @@
+.header__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav__link {
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #52525b;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.nav__link:hover {
+  color: #18181b;
+  background: #f4f4f5;
+}
+
+.nav__link--active {
+  color: #18181b;
+  background: #fff;
+  border-color: #e4e4e7;
+}

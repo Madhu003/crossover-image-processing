@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { UploadImageError } from "../handlers/uploadImage.js";
+import { JobError } from "../handlers/createJob.js";
 
 export function mapUploadError(error: unknown): {
   statusCode: number;
@@ -25,4 +26,14 @@ export function mapUploadError(error: unknown): {
       error: error instanceof Error ? error.message : "Internal server error",
     },
   };
+}
+
+export function mapJobError(error: unknown): {
+  statusCode: number;
+  body: { error: string };
+} {
+  if (error instanceof JobError) {
+    return { statusCode: error.statusCode, body: { error: error.message } };
+  }
+  return mapUploadError(error);
 }

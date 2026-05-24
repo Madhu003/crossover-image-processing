@@ -5,7 +5,7 @@ import {
   ResourceNotFoundException,
 } from "@aws-sdk/client-dynamodb";
 import type { KeySchemaElement } from "@aws-sdk/client-dynamodb";
-import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamoClient, dynamoDocClient } from "../aws/clients.js";
 import { config } from "../config.js";
 import {
@@ -16,21 +16,32 @@ import {
 import type {
   ImageItem,
   ImageRecord,
+  JobImageItem,
+  JobImageRecord,
+  JobItem,
+  JobRecord,
   Organization,
   OrganizationItem,
   User,
   UserItem,
 } from "../models/entities.js";
 import {
+  jobImageSkPrefix,
   pkOrg,
   pkUser,
   skImage,
+  skJob,
+  skJobImage,
   skOrgMetadata,
   skProfile,
 } from "./keys.js";
 
 export function generateImageId(): number {
   return Date.now() * 1000 + Math.floor(Math.random() * 1000);
+}
+
+export function generateJobId(): string {
+  return `job-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function isSingleTableKeySchema(keySchema: KeySchemaElement[] | undefined): boolean {
@@ -224,6 +235,24 @@ function toImageItem(image: ImageRecord): ImageItem {
   };
 }
 
+function toJobItem(job: JobRecord): JobItem {
+  return {
+    pk: pkOrg(job.organizationId),
+    sk: skJob(job.jobId),
+    entityType: "JOB",
+    ...job,
+  };
+}
+
+function toJobImageItem(image: JobImageRecord): JobImageItem {
+  return {
+    pk: pkOrg(image.organizationId),
+    sk: skJobImage(image.jobId, image.imageId),
+    entityType: "JOB_IMAGE",
+    ...image,
+  };
+}
+
 function fromUserItem(item: UserItem): User {
   const { pk: _pk, sk: _sk, entityType: _et, ...user } = item;
   return user;
@@ -235,6 +264,16 @@ function fromOrganizationItem(item: OrganizationItem): Organization {
 }
 
 function fromImageItem(item: ImageItem): ImageRecord {
+  const { pk: _pk, sk: _sk, entityType: _et, ...image } = item;
+  return image;
+}
+
+function fromJobItem(item: JobItem): JobRecord {
+  const { pk: _pk, sk: _sk, entityType: _et, ...job } = item;
+  return job;
+}
+
+function fromJobImageItem(item: JobImageItem): JobImageRecord {
   const { pk: _pk, sk: _sk, entityType: _et, ...image } = item;
   return image;
 }
@@ -317,6 +356,178 @@ export class DynamoDBStore {
     );
     if (!result.Item) return null;
     return fromImageItem(result.Item as ImageItem);
+  }
+
+  async putJob(job: JobRecord): Promise<void> {
+    await dynamoDocClient.send(
+      new PutCommand({
+        TableName: config.aws.dynamoTable,
+        Item: toJobItem(job),
+      }),
+    );
+  }
+
+  async getJob(
+    organizationId: string,
+    jobId: string,
+  ): Promise<JobRecord | null> {
+    const result = await dynamoDocClient.send(
+      new GetCommand({
+        TableName: config.aws.dynamoTable,
+        Key: { pk: pkOrg(organizationId), sk: skJob(jobId) },
+      }),
+    );
+    if (!result.Item) return null;
+    return fromJobItem(result.Item as JobItem);
+  }
+
+  async putJobImage(image: JobImageRecord): Promise<void> {
+    await dynamoDocClient.send(
+      new PutCommand({
+        TableName: config.aws.dynamoTable,
+        Item: toJobImageItem(image),
+      }),
+    );
+  }
+
+  async getJobImage(
+    organizationId: string,
+    jobId: string,
+    imageId: number,
+  ): Promise<JobImageRecord | null> {
+    const result = await dynamoDocClient.send(
+      new GetCommand({
+        TableName: config.aws.dynamoTable,
+        Key: {
+          pk: pkOrg(organizationId),
+          sk: skJobImage(jobId, imageId),
+        },
+      }),
+    );
+    if (!result.Item) return null;
+    return fromJobImageItem(result.Item as JobImageItem);
+  }
+
+  async listJobImages(
+    organizationId: string,
+    jobId: string,
+  ): Promise<JobImageRecord[]> {
+    const result = await dynamoDocClient.send(
+      new QueryCommand({
+        TableName: config.aws.dynamoTable,
+        KeyConditionExpression: "pk = :pk AND begins_with(sk, :prefix)",
+        ExpressionAttributeValues: {
+          ":pk": pkOrg(organizationId),
+          ":prefix": jobImageSkPrefix(jobId),
+        },
+      }),
+    );
+
+    return (result.Items ?? []).map((item) =>
+      fromJobImageItem(item as JobImageItem),
+    );
+  }
+
+  async updateJobImageStatus(
+    organizationId: string,
+    jobId: string,
+    imageId: number,
+    update: {
+      status: JobImageRecord["status"];
+      originalS3Key?: string;
+      processedS3Key?: string;
+      failedReason?: string;
+    },
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const expressions = ["#status = :status", "updatedAt = :updatedAt"];
+    const names: Record<string, string> = { "#status": "status" };
+    const values: Record<string, string> = {
+      ":status": update.status,
+      ":updatedAt": now,
+    };
+
+    if (update.originalS3Key !== undefined) {
+      expressions.push("originalS3Key = :originalS3Key");
+      values[":originalS3Key"] = update.originalS3Key;
+    }
+    if (update.processedS3Key !== undefined) {
+      expressions.push("processedS3Key = :processedS3Key");
+      values[":processedS3Key"] = update.processedS3Key;
+    }
+    if (update.failedReason !== undefined) {
+      expressions.push("failedReason = :failedReason");
+      values[":failedReason"] = update.failedReason;
+    }
+
+    await dynamoDocClient.send(
+      new UpdateCommand({
+        TableName: config.aws.dynamoTable,
+        Key: {
+          pk: pkOrg(organizationId),
+          sk: skJobImage(jobId, imageId),
+        },
+        UpdateExpression: `SET ${expressions.join(", ")}`,
+        ExpressionAttributeNames: names,
+        ExpressionAttributeValues: values,
+      }),
+    );
+  }
+
+  async incrementJobCounters(
+    organizationId: string,
+    jobId: string,
+    delta: {
+      completedCount?: number;
+      failedCount?: number;
+      processingCount?: number;
+    },
+  ): Promise<void> {
+    const parts: string[] = ["updatedAt = :updatedAt"];
+    const values: Record<string, number | string> = {
+      ":updatedAt": new Date().toISOString(),
+    };
+
+    if (delta.completedCount) {
+      parts.push("completedCount = completedCount + :completedDelta");
+      values[":completedDelta"] = delta.completedCount;
+    }
+    if (delta.failedCount) {
+      parts.push("failedCount = failedCount + :failedDelta");
+      values[":failedDelta"] = delta.failedCount;
+    }
+    if (delta.processingCount) {
+      parts.push("processingCount = processingCount + :processingDelta");
+      values[":processingDelta"] = delta.processingCount;
+    }
+
+    await dynamoDocClient.send(
+      new UpdateCommand({
+        TableName: config.aws.dynamoTable,
+        Key: { pk: pkOrg(organizationId), sk: skJob(jobId) },
+        UpdateExpression: `SET ${parts.join(", ")}`,
+        ExpressionAttributeValues: values,
+      }),
+    );
+  }
+
+  async updateJobStatus(
+    organizationId: string,
+    jobId: string,
+    status: JobRecord["status"],
+  ): Promise<void> {
+    await dynamoDocClient.send(
+      new UpdateCommand({
+        TableName: config.aws.dynamoTable,
+        Key: { pk: pkOrg(organizationId), sk: skJob(jobId) },
+        UpdateExpression: "SET #status = :status, updatedAt = :updatedAt",
+        ExpressionAttributeNames: { "#status": "status" },
+        ExpressionAttributeValues: {
+          ":status": status,
+          ":updatedAt": new Date().toISOString(),
+        },
+      }),
+    );
   }
 
   /** Validates org exists; defaults to hardcoded demo org when omitted. */

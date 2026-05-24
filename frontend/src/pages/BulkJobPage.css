@@ -1,0 +1,47 @@
+.file-count {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #3f3f46;
+}
+
+.pipeline {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pipeline__step {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.pipeline__index {
+  font-size: 0.8125rem;
+  color: #71717a;
+  min-width: 3.5rem;
+}
+
+.pipeline__remove,
+.pipeline__add {
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.pipeline__add {
+  align-self: flex-start;
+}
+
+.pipeline__remove:disabled,
+.pipeline__add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

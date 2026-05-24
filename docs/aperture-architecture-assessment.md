@@ -8,11 +8,11 @@
 
 - **API Gateway and Lambda have hard timeouts** (~30s at the gateway; Lambda max 15 min). A synchronous `POST /images` cannot stretch to minutes or hours — bulk processing must become async jobs.
 - **Base64-in-JSON does not scale** for hundreds of large files (payload size, memory, cost). Upload path must move to **direct-to-S3** (presigned URLs / multipart).
-- **Power users already stress flat-rate economics.** Bulk jobs need metering (image count, GB, pipeline steps) even if billing is out of scope
+- **Power users already stress flat-rate economics.** Bulk jobs need metering (image count, GB, pipeline steps) even if billing is out of scope for this design.
 - **S3 + DynamoDB single-table design already fits org-scoped access.** Extend with `JOB#` / `PIPELINE#` entities rather than a new database.
 - **Processing is CPU/memory bound** (Sharp today). Multi-step pipelines multiply work; workers need right-sized compute separate from the thin API Lambda.
-- **Partial failure is expected at scale.** Per-image status, retries, and resumability — not all-or-nothing
-- **4.5 MB cap on sync path preserved.** Keep **4.5 MB for `POST /images`; higher cap on presigned bulk path for enterprise tier.
+- **Partial failure is expected at scale.** Must support per-image status, retries, and resumability — not all-or-nothing in one Lambda invocation.
+- **4.5 MB cap exists on the sync path.** Keep the limit for `POST /images`; allow a higher cap on the presigned bulk path for enterprise tier.
 
 ### Important Technical Decisions
 
@@ -47,7 +47,7 @@
 
 - **Problem:** What if processing fails partway through bulk job?
 - **Alternatives:** Fail entire job (bad UX 499/500); retry whole job (wasteful); **per-image retries** (SQS redrive, max attempts) + `completed_with_errors`.
-- **Decision:** Idempotent worker keyed by `(jobId, imageId}`; deterministic S3 keys}. Failed images: `failedReason` on image record; optional `POST /jobs/:id/retry-failed`. Job completes when all images terminal; counts in `GET /jobs/:id`.
+- **Decision:** Idempotent worker keyed by `(jobId, imageId)`; deterministic S3 keys. Failed images: `failedReason` on image record; optional `POST /jobs/:id/retry-failed`. Job completes when all images terminal; counts in `GET /jobs/:id`.
 - **Rationale:** Matches enterprise bulk (stragglers). Idempotency prevents duplicate S3 objects on retry.
 
 #### Decision 6: Raise size limits only on bulk path
@@ -77,7 +77,7 @@
 - **Problem:** What is the API between Aperture and third-party filters?
 - **Alternatives:** Pass raw pixels in Lambda event (size limits); gRPC streaming (complex for indie devs); **canonical contract:** `inputS3Uri`, `outputS3Prefix`, `params`, `context` (orgId, imageId) → `status` + `outputS3Uri` + metadata.
 - **Decision:** Publish **Filter Host Protocol (v1):** worker downloads input from S3, invokes filter in sandbox, uploads output, returns structured result. First-party Sharp filters implement same interface internally.
-- **Rationale:** Same contract for sync and bulk workers. vendors test locally with MinIO + CLI. No dependency on our DynamoDB schema inside their code.
+- **Rationale:** Same contract for sync and bulk workers. Vendors test locally with MinIO + CLI. No dependency on our DynamoDB schema inside their code.
 
 #### Decision 2: Sandboxed execution via Filter Runner Lambdas
 
@@ -104,7 +104,7 @@
 
 - **Problem:** What does billing/revenue share require technically?
 - **Alternatives:** Aggregate CloudWatch logs (fragile); **usage event stream** each invocation `{ orgId, filterId, version, imageId, durationMs, outcome }` → Kinesis → durable store.
-- **Decision:** Filter Runner emits events **after** successful S3 write; billing aggregates monthly per `(orgId, DEVICE, filterId, version)`. Purchases write **entitlement records** checked before enqueue.
+- **Decision:** Filter Runner emits events **after** successful S3 write; billing aggregates monthly per `(orgId, filterId, version)`. Purchases write **entitlement records** checked before enqueue.
 - **Rationale:** Decouples payments from execution; refunds, disputes, vendor payouts without reprocessing. Failed invocations log for SLOs; may not bill.
 
 #### Decision 6: Sync vs async routing for marketplace filters

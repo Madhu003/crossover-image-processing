@@ -3,6 +3,7 @@ import express from "express";
 import { config } from "./config.js";
 import { DynamoDBSchemaError } from "./storage/dynamodb.js";
 import { imagesRouter } from "./routes/images.js";
+import { jobsRouter } from "./routes/jobs.js";
 import { db } from "./storage/dynamodb.js";
 import { s3 } from "./storage/s3.js";
 
@@ -17,7 +18,7 @@ async function main(): Promise<void> {
       origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
     }),
   );
-  app.use(express.json({ limit: "6mb" }));
+  app.use(express.json({ limit: "50mb" }));
 
   app.get("/health", (_req, res) => {
     res.json({
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   });
 
   app.use("/images", imagesRouter);
+  app.use("/jobs", jobsRouter);
 
   app.use(
     (
@@ -52,6 +54,8 @@ async function main(): Promise<void> {
   app.listen(config.port, () => {
     console.log(`Aperture API listening on ${config.publicBaseUrl}`);
     console.log(`  POST ${config.publicBaseUrl}/images`);
+    console.log(`  POST ${config.publicBaseUrl}/jobs`);
+    console.log(`  GET  ${config.publicBaseUrl}/jobs/:jobId`);
     console.log(`  S3 bucket: ${config.aws.s3Bucket}`);
     console.log(`  DynamoDB table: ${config.aws.dynamoTable}`);
     console.log(`  Default org: ${config.defaultOrganizationId}`);
