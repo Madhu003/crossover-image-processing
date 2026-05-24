@@ -1,0 +1,142 @@
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.header {
+  margin-bottom: 1.75rem;
+}
+
+.header h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.header p {
+  margin: 0;
+  color: #52525b;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #3f3f46;
+}
+
+.hint {
+  font-size: 0.8125rem;
+  color: #71717a;
+}
+
+select,
+input[type="file"] {
+  width: 100%;
+}
+
+select {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+select:disabled,
+input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submit {
+  align-self: flex-start;
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  background: #18181b;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.submit:hover:not(:disabled) {
+  background: #27272a;
+}
+
+.submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.message {
+  margin: 1.25rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.message--error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.message--info {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.previews {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 520px) {
+  .previews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.preview {
+  margin: 0;
+}
+
+.preview figcaption {
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #71717a;
+}
+
+.preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+}

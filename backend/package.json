@@ -1,0 +1,35 @@
+{
+  "name": "aperture-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Aperture image processing API (Express + S3 + DynamoDB)",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "seed": "tsx src/scripts/seed.ts",
+    "setup:dynamo": "tsx src/scripts/setup-dynamodb.ts",
+    "setup:dynamo:recreate": "FORCE_RECREATE_DYNAMODB_TABLE=true tsx src/scripts/setup-dynamodb.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1053.0",
+    "@aws-sdk/client-s3": "^3.1053.0",
+    "@aws-sdk/lib-dynamodb": "^3.1053.0",
+    "@aws-sdk/s3-request-presigner": "^3.1053.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
