@@ -66,3 +66,4 @@ Open **http://localhost:5173**, choose an image (≤ 4.5 MB), pick a filter, and
 ## Architecture scenarios
 
 Design notes: [`docs/architecture-scenarios.md`](docs/architecture-scenarios.md).
+Arctitecture Notes: [`Doc link`](https://docs.google.com/document/d/1yCINePP-7Wb6Mk_i17-na324V17MlHb_L-I4yZsO0O8/edit?usp=sharing).
